@@ -227,14 +227,7 @@ function App() {
 
   const deleteProduct = async() => {
     try {
-      await axios.delete(`${BASE_URL}/v2/api/${API_PATH}/admin/product/${tempProduct.id}`,{
-        data: {
-          ...tempProduct,
-          origin_price: Number(tempProduct.origin_price),
-          price: Number(tempProduct.price),
-          is_enabled: tempProduct.is_enabled ? 1 : 0
-        }
-      }) 
+      await axios.delete(`${BASE_URL}/v2/api/${API_PATH}/admin/product/${tempProduct.id}`) 
     } catch (error) {
         alert('刪除產品失敗');
     }
@@ -274,7 +267,6 @@ function App() {
       <div className="row">
         <div className="col">
           <div className="d-flex justify-content-between">
-            <button onClick={getProducts} type='button'>click</button>
             <h2>產品列表</h2>
             <button onClick={() => handleOpenProductModal('create')} type="button" className="btn btn-primary">建立新的產品</button>
           </div>
