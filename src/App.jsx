@@ -25,7 +25,7 @@ function App() {
   //const [tempProduct, setTempProduct] = useState({});
   const [products, setProducts] = useState([]);
 
-  const [ account, setAccount] = useState({
+  const [account, setAccount] = useState({
     username: "example@test.com",
     password: "example"
   })
@@ -38,38 +38,52 @@ function App() {
     })
   }
 
-  const handleLogin = (e) => {
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    axios.post(`${BASE_URL}/v2/admin/signin`, account)
-      .then((res) => {
-        const { token, expired } = res.data; 
-        document.cookie = `hexToken=${token}; expires=${new Date(expired)}`;
 
-        axios.defaults.headers.common['Authorization'] = token;
+    try {
+      const res = await axios.post(`${BASE_URL}/v2/admin/signin`, account);
 
-        // axios.get(`${BASE_URL}/v2/api/${API_PATH}/admin/products`)
-        // .then((res) => setProducts(res.data.products));
-        // .catch((err) => console.error(err));
-        // setIsAuth(true);
-      })
-      .catch((err) =>alert('登入失敗'))
+      const { token, expired } = res.data; 
+
+
+      
+      document.cookie = `hexToken=${token}; expires=${new Date(expired)}`;
+
+
+      axios.defaults.headers.common['Authorization'] = token;
+
+      getProducts();
+
+      setIsAuth(true);
+      
+
+    } catch (error) {
+      alert('取得產品失敗');
+
+    }
   }
 
-  const checkUserLogin = () => {
-    axios.post(`${BASE_URL}/v2/api/user/check`)
-      .then((res) => {
-        setIsAuth(true);
-
-        axios.get(`${BASE_URL}/v2/api/${API_PATH}/admin/products`)
-      .then((res) => {
-        setProducts(res.data.products)
-      })
-      .catch((err) => console.error(err));
-      })
-
-    .catch((err) => {
+  const getProducts = async () => {
+    try {
+      const res = await axios.get(
+        `${BASE_URL}/v2/api/${API_PATH}/admin/products`
+      );
+      setProducts(res.data.products);
+    } catch (error) {
+      alert("取得產品失敗");
+    }
+  };
+  
+  const checkUserLogin = async () => {
+    try {
+       await axios.post(`${BASE_URL}/v2/api/user/check`)
+       getProducts();
+       setIsAuth(true);
+    } catch (error) {
       console.error(err)
-    });
+    }
   }
 
   useEffect(() =>{
@@ -83,10 +97,15 @@ function App() {
   }, [])
   
   const productModalRef = useRef(null);
+  const delProductModalRef = useRef(null);
   const [modalMode, setModalMode] = useState(null); //新增狀態判斷是新增還是編輯
 
   useEffect(() => {
     new Modal(productModalRef.current, {
+      backdrop: false
+    });
+
+    new Modal(delProductModalRef.current, {
       backdrop: false
     });
 
@@ -120,6 +139,18 @@ function App() {
     modalInstance.hide();
   }
 
+  const handleOpenDelProductModal = (product) => {
+    setTempProduct(product);
+
+    const modalInstance =  Modal.getInstance(delProductModalRef.current);
+    modalInstance.show();
+  }
+
+  const handleCloseDelProductModal = () => {
+    const modalInstance =  Modal.getInstance(delProductModalRef.current);
+    modalInstance.hide();
+  }
+
   const [tempProduct, setTempProduct] = useState(defaultModalState);
 
   const handleModalInputChange = (e) => {
@@ -141,7 +172,100 @@ function App() {
       ...tempProduct,
       imagesUrl: newImage
     })
+  }
 
+  const hadleAddImage = () =>{
+    const newImage = [...tempProduct.imagesUrl, ''];
+
+
+    setTempProduct({
+      ...tempProduct,
+      imagesUrl: newImage
+    })
+  }
+
+  const hadleRemoveImage = () =>{
+    const newImage = [...tempProduct.imagesUrl];
+
+    newImage.pop();
+
+    setTempProduct({
+      ...tempProduct,
+      imagesUrl: newImage
+    })
+  }
+
+  const createProduct = async() => {
+    try {
+      await axios.post(`${BASE_URL}/v2/api/${API_PATH}/admin/product`,{
+        data: {
+          ...tempProduct,
+          origin_price: Number(tempProduct.origin_price),
+          price: Number(tempProduct.price),
+          is_enabled: tempProduct.is_enabled ? 1 : 0
+        }
+      }) 
+    } catch (error) {
+        alert('新增產品失敗');
+    }
+  }
+
+  const updateProduct = async() => {
+    try {
+      await axios.put(`${BASE_URL}/v2/api/${API_PATH}/admin/product/${tempProduct.id}`,{
+        data: {
+          ...tempProduct,
+          origin_price: Number(tempProduct.origin_price),
+          price: Number(tempProduct.price),
+          is_enabled: tempProduct.is_enabled ? 1 : 0
+        }
+      }) 
+    } catch (error) {
+        alert('編輯產品失敗');
+    }
+  }
+
+  const deleteProduct = async() => {
+    try {
+      await axios.delete(`${BASE_URL}/v2/api/${API_PATH}/admin/product/${tempProduct.id}`,{
+        data: {
+          ...tempProduct,
+          origin_price: Number(tempProduct.origin_price),
+          price: Number(tempProduct.price),
+          is_enabled: tempProduct.is_enabled ? 1 : 0
+        }
+      }) 
+    } catch (error) {
+        alert('刪除產品失敗');
+    }
+  }
+
+  const handleUpdateProduct = async() =>{
+    const apiCall = modalMode === 'create' ? createProduct : updateProduct; //  判斷新增產品或編輯產品
+
+    try {
+      await apiCall();
+
+      getProducts();
+
+      handleCloseProductModal();
+
+    } catch (error) {
+      alert('更新產品失敗')
+    }
+  }
+
+  const handleDeleteProduct = async() =>{
+    try {
+      await deleteProduct();
+
+      getProducts();
+
+      handleCloseDelProductModal();
+
+    } catch (error) {
+      alert('刪除產品失敗')
+    }
   }
 
   return (
@@ -150,6 +274,7 @@ function App() {
       <div className="row">
         <div className="col">
           <div className="d-flex justify-content-between">
+            <button onClick={getProducts} type='button'>click</button>
             <h2>產品列表</h2>
             <button onClick={() => handleOpenProductModal('create')} type="button" className="btn btn-primary">建立新的產品</button>
           </div>
@@ -169,11 +294,12 @@ function App() {
                   <th scope="row">{product.title}</th>
                   <td>{product.origin_price}</td>
                   <td>{product.price}</td>
-                  <td>{product.is_enabled}</td>
+                  <td>{product.is_enabled ? (<span className="text-success">啟用</span>) : (<span>未啟用</span>)}
+                  </td>
                   <td>
                     <div className="btn-group">
                       <button onClick={() => handleOpenProductModal('edit', product)} type="button" className="btn btn-outline-primary btn-sm">編輯</button>
-                      <button type="button" className="btn btn-outline-danger btn-sm">刪除</button>
+                      <button onClick={() => handleOpenDelProductModal(product)} type="button" className="btn btn-outline-danger btn-sm">刪除</button>
                    </div>
                   </td>
                 </tr>
@@ -258,6 +384,11 @@ function App() {
                     )}
                   </div>
                 ))}
+
+                <div className="btn-group w-100">
+                    {tempProduct.imagesUrl.length < 5 && tempProduct.imagesUrl[tempProduct.imagesUrl.length-1] !== '' &&(<button onClick={hadleAddImage} className="btn btn-outline-primary btn-sm w-100">新增圖片</button>)}
+                    {tempProduct.imageUrl.length > 1 && (<button  onClick={hadleRemoveImage} className="btn btn-outline-danger btn-sm w-100">取消圖片</button>)}
+                </div>
 
               </div>
             </div>
@@ -390,13 +521,53 @@ function App() {
           <button onClick={handleCloseProductModal} type="button" className="btn btn-secondary">
             取消
           </button>
-          <button type="button" className="btn btn-primary">
+          <button onClick={handleUpdateProduct} type="button" className="btn btn-primary">
             確認
           </button>
         </div>
       </div>
     </div>
-  </div>
+     </div>
+
+      <div
+        ref={delProductModalRef}
+        className="modal fade"
+        id="delProductModal"
+        tabIndex="-1"
+        style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      >
+        <div className="modal-dialog">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h1 className="modal-title fs-5">刪除產品</h1>
+              <button
+                onClick={handleCloseDelProductModal}
+                type="button"
+                className="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close">
+              </button>
+            </div>
+            <div className="modal-body">
+              你是否要刪除 
+              <span className="text-danger fw-bold">{tempProduct.title}</span>
+            </div>
+            <div className="modal-footer">
+              <button
+                onClick={handleCloseDelProductModal}
+                type="button"
+                className="btn btn-secondary"
+              >
+                取消
+              </button>
+              <button onClick={handleDeleteProduct} type="button" className="btn btn-danger">
+                刪除
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </>
   )
 }
